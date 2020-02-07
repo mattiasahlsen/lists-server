@@ -3,6 +3,12 @@ import logging
 from flask import Flask, escape, request, jsonify
 import lists
 
+try:
+    if not os.environ['FLASK_ENV'] == 'development':
+        logging.basicConfig(filename='error.log',level=logging.WARNING)
+except KeyError:
+    logging.basicConfig(filename='error.log',level=logging.WARNING)
+
 app = Flask(__name__)
 
 
@@ -43,9 +49,4 @@ def delete_list():
 def handle_keyerror(e):
     return 'List not found.', 404
 
-try:
-    if not os.environ['FLASK_ENV'] == 'development':
-        logging.basicConfig(filename='error.log',level=logging.WARNING)
-except KeyError:
-    logging.basicConfig(filename='error.log',level=logging.WARNING)
 
