@@ -48,12 +48,12 @@ LIST_LIFETIME = 1.0 * 3600 * 24 # 24 hours
 
 
 def delete(id):
-    cursor.execute(f'DELETE FROM {LIST_TABLE} WHERE id = %s', id)
+    cursor.execute(f'DELETE FROM {LIST_TABLE} WHERE id = %s', (id,))
     mydb.commit()
 
 def new():
     list_id = lib.random_string()
-    cursor.execute(f'INSERT INTO {LIST_TABLE} (id) VALUES (%s)', list_id)
+    cursor.execute(f'INSERT INTO {LIST_TABLE} (id) VALUES (%s)', (list_id,))
     mydb.commit()
 
     delete_timer = Timer(LIST_LIFETIME, delete, (list_id,))
@@ -62,12 +62,19 @@ def new():
     return list_id
 
 def get(id):
-    cursor.execute(f'SELECT * FROM {ENTRY_TABLE} WHERE list_id = %s', id)
+    cursor.execute(f'SELECT * FROM {ENTRY_TABLE} WHERE list_id = %s', (id,))
     entries = cursor.fetchall()
-    return entries
+    my_list = {}
+    my_list['id'] = id
+    my_list['items'] = [entry for _, entry, _ in entries]
+    print(my_list)
+    return my_list
 
 def add(id, item):
+    print(id)
+    print(item)
     cursor.execute(
-        f'INSERT INTO {ENTRY_TABLE} (text, list_id) VALUES (%s, %s)', item, id
+        f'INSERT INTO {ENTRY_TABLE} (text, list_id) VALUES (%s, %s)', (item, id,)
     )
+    mydb.commit()
 
