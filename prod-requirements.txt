@@ -1,0 +1,3 @@
+wheel
+uWSGI==2.0.18
+Werkzeug==0.16.1

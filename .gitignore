@@ -30,3 +30,7 @@ build
 
 # logs
 error.log
+
+# env files
+.env
+.env.*
