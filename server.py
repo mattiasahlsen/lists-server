@@ -43,5 +43,9 @@ def delete_list():
 def handle_keyerror(e):
     return 'List not found.', 404
 
-if not os.environ['FLASK_ENV'] == 'development':
+try:
+    if not os.environ['FLASK_ENV'] == 'development':
+        logging.basicConfig(filename='error.log',level=logging.WARNING)
+except KeyError:
     logging.basicConfig(filename='error.log',level=logging.WARNING)
+
