@@ -4,6 +4,7 @@ import lib
 import os
 from dotenv import load_dotenv
 import mysql.connector
+import logging
 
 # settings
 load_dotenv()
@@ -70,11 +71,9 @@ def get(id):
     print(my_list)
     return my_list
 
-def add(id, item):
-    print(id)
-    print(item)
+def add(list_id, item):
     cursor.execute(
-        f'INSERT INTO {ENTRY_TABLE} (text, list_id) VALUES (%s, %s)', (item, id,)
+        f'INSERT INTO {ENTRY_TABLE} (text, list_id) VALUES (%s, %s)', (item, list_id,)
     )
     mydb.commit()
 

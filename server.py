@@ -3,11 +3,14 @@ import logging
 from flask import Flask, escape, request, jsonify
 import lists
 
-try:
-    if not os.environ['FLASK_ENV'] == 'development':
-        logging.basicConfig(filename='error.log',level=logging.WARNING)
-except KeyError:
-    logging.basicConfig(filename='error.log',level=logging.WARNING)
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+
+if not os.getenv('FLASK_ENV') == 'development':
+    logging.basicConfig(filename=DIR_PATH + '/error.log',level=logging.WARNING)
+    # logging.basicConfig(filename=DIR_PATH + '/info.log', level=logging.INFO)
+
+# logging.info('Starting server')
 
 app = Flask(__name__)
 
