@@ -17,21 +17,36 @@ LIST_TABLE = 'Lists'
 ENTRY_TABLE = 'Entries'
 
 
-mydb = mysql.connector.connect(
-  host=DB_HOST,
-  user=DB_USER,
-  passwd=DB_PASSWORD
-)
-cursor = mydb.cursor()
-cursor.execute(f'CREATE DATABASE IF NOT EXISTS {DB_NAME}')
-cursor.execute(f'USE {DB_NAME}')
-cursor.execute(f'''
+def db_connect():
+    db = mysql.connector.connect(
+      host=DB_HOST,
+      user=DB_USER,
+      passwd=DB_PASSWORD
+    )
+    cursor = db.cursor()
+    return db, cursor
+
+db, cursor = db_connect()
+
+def execute(*args):
+    global db
+    global cursor
+    try:
+        cursor.execute(*args)
+    except mysql.connector.DatabaseError as err:
+        db, cursor = db_connect()
+        cursor.execute(*args)
+
+
+execute(f'CREATE DATABASE IF NOT EXISTS {DB_NAME}')
+execute(f'USE {DB_NAME}')
+execute(f'''
     CREATE TABLE IF NOT EXISTS {LIST_TABLE} (
         id VARCHAR(255) NOT NULL,
         PRIMARY KEY (id)
     )
 ''')
-cursor.execute(f'''
+execute(f'''
     CREATE TABLE IF NOT EXISTS {ENTRY_TABLE} (
         id INT NOT NULL AUTO_INCREMENT,
         text VARCHAR(255) NOT NULL,
@@ -49,13 +64,13 @@ LIST_LIFETIME = 1.0 * 3600 * 24 # 24 hours
 
 
 def delete(id):
-    cursor.execute(f'DELETE FROM {LIST_TABLE} WHERE id = %s', (id,))
-    mydb.commit()
+    execute(f'DELETE FROM {LIST_TABLE} WHERE id = %s', (id,))
+    db.commit()
 
 def new():
     list_id = lib.random_string()
-    cursor.execute(f'INSERT INTO {LIST_TABLE} (id) VALUES (%s)', (list_id,))
-    mydb.commit()
+    execute(f'INSERT INTO {LIST_TABLE} (id) VALUES (%s)', (list_id,))
+    db.commit()
 
     delete_timer = Timer(LIST_LIFETIME, delete, (list_id,))
     delete_timer.start()
@@ -63,17 +78,16 @@ def new():
     return list_id
 
 def get(id):
-    cursor.execute(f'SELECT * FROM {ENTRY_TABLE} WHERE list_id = %s', (id,))
+    execute(f'SELECT * FROM {ENTRY_TABLE} WHERE list_id = %s', (id,))
     entries = cursor.fetchall()
     my_list = {}
     my_list['id'] = id
     my_list['items'] = [entry for _, entry, _ in entries]
-    print(my_list)
     return my_list
 
 def add(list_id, item):
-    cursor.execute(
+    execute(
         f'INSERT INTO {ENTRY_TABLE} (text, list_id) VALUES (%s, %s)', (item, list_id,)
     )
-    mydb.commit()
+    db.commit()
 

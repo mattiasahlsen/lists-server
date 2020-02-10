@@ -3,19 +3,22 @@ import logging
 from flask import Flask, escape, request, jsonify
 import lists
 
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 if not os.getenv('FLASK_ENV') == 'development':
-    logging.basicConfig(filename=DIR_PATH + '/error.log',level=logging.WARNING)
-    # logging.basicConfig(filename=DIR_PATH + '/info.log', level=logging.INFO)
+    logging.basicConfig(
+        filename=DIR + '/error.log',
+        level=logging.WARNING,
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
-# logging.info('Starting server')
-
+logging.error('test')
 app = Flask(__name__)
 
 
-@app.route('/list', )
+@app.route('/list')
 def get_list():
     id = request.args.get('id')
     if id is None: return 'No id parameter provided', 400
@@ -46,10 +49,4 @@ def delete_list():
 
     lists.delete(id)
     return 'List deleted if existed.'
-
-
-@app.errorhandler(KeyError)
-def handle_keyerror(e):
-    return 'List not found.', 404
-
 
