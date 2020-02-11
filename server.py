@@ -14,7 +14,6 @@ if not os.getenv('FLASK_ENV') == 'development':
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-logging.error('test')
 app = Flask(__name__)
 
 
