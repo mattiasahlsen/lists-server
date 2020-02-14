@@ -34,7 +34,9 @@ def execute(*args):
     try:
         cursor.execute(*args)
     except mysql.connector.DatabaseError as err:
+        logging.error('DB ERROR')
         db, cursor = db_connect()
+        execute(f'USE {DB_NAME}')
         cursor.execute(*args)
 
 
