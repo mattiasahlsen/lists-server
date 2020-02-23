@@ -22,9 +22,9 @@ def get_list():
     id = request.args.get('id')
     if id is None: return 'No id parameter provided', 400
 
-    return lists.get(id)
-
-    return data
+    l = lists.get(id)
+    if l: return l
+    else: return 'List not found', 404
 
 @app.route('/new-list')
 def new_list():
@@ -37,15 +37,18 @@ def add_item():
     if list_id is None: return 'No id parameter provided', 400
 
     new_item = request.form['item']
-    lists.add(list_id, new_item)
 
-    return lists.get(list_id)
+    # success
+    changed_list = lists.add(list_id, new_item)
+    print(changed_list)
+    return changed_list or ('List not found', 404)
 
 @app.route('/delete')
 def delete_list():
     id = request.args.get('id')
     if id is None: return 'No id parameter provided', 400
 
-    lists.delete(id)
-    return 'List deleted if existed.'
+    deleted = lists.delete(id)
+    returned = 'List deleted' if deleted else ('List not found', 404)
+    return returned
 
