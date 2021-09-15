@@ -5,7 +5,6 @@ from threading import Timer, Thread, Event
 import lib
 import os
 import logging
-from dotenv import load_dotenv
 
 import sqlalchemy as db
 from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
@@ -13,25 +12,24 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
-# settings
-load_dotenv()
-DB_HOST = os.getenv('DB_HOST') or 'localhost'
-DB_USER = os.environ['DB_USER']
-DB_PASSWORD = os.environ['DB_PASSWORD']
-
-DB_NAME = 'lists'
 LIST_TABLE = 'List'
 ENTRY_TABLE = 'Entry'
 
-LIST_LIFETIME = 1.0 * 3600 * 24 # 24 hours
+LIST_LIFETIME = 3600 * 24 # 24 hours
 
-engine = db.create_engine(f'mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}')
 Base = declarative_base()
 
 class List(Base):
     __tablename__ = LIST_TABLE
     id = Column(String(255), primary_key=True)
-    dies = Column(DateTime)
+    expires = Column(DateTime)
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'expires': self.expires.timestamp(),
+            'items': [entry.to_dict() for entry in self.entries] #[entry.text for entry in self.entries]
+        }
+
 class Entry(Base):
     __tablename__ = ENTRY_TABLE
     id = Column(Integer, primary_key=True)
@@ -41,72 +39,77 @@ class Entry(Base):
         ForeignKey(List.id, ondelete='cascade'),
         nullable=False
     )
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'text': self.text
+        }
 
 List.entries = relationship(Entry, cascade='all, delete-orphan')
 
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind = engine)
-session = Session()
-
-
-
-
 def alive():
-    return datetime.now() < List.dies
+    return datetime.now() < List.expires
 def dead():
-    return datetime.now() >= List.dies
-
-
-# cleanup feature
-def clean_up():
-    session.query(List).filter(dead()).delete()
-    session.commit()
+    return datetime.now() >= List.expires
 
 
 class CleanupThread(Thread):
-    def __init__(self, event):
+    def __init__(self, session, event):
         Thread.__init__(self)
         self.stopped = event
+        self.session = session
 
     def run(self):
         while not self.stopped.wait(3600): # every hour
-            clean_up()
+            self.session.query(List).filter(dead()).delete()
+            self.session.commit()
 
-stopFlag = Event()
-thread = CleanupThread(stopFlag)
-thread.start()
-# stopFlag.set() # stops the thread
 
-def delete(id):
-    # returns true if delete is successful
-    deleted = session.query(List).filter(List.id == id).delete() == 1
-    session.commit()
-    return deleted
+class ListApp:
+    def __init__(self, connection):
+        engine = db.create_engine(connection)
 
-def new():
-    list_id = lib.random_string()
-    new_list = List(
-        id=list_id,
-        dies=datetime.fromtimestamp(time.time() + 24 * 3600) # 24 hour lifetime
-    )
-    session.add(new_list)
-    session.commit()
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind = engine)
+        self.session = Session()
 
-    return list_id
+        stopFlag = Event()
+        thread = CleanupThread(self.session, stopFlag)
+        thread.start()
+        # stopFlag.set() # stops the thread
 
-def get(id):
-    l = session.query(List).filter(alive()).first()
-    if l == None: return None
+    def delete(self, id):
+        # returns true if delete is successful
+        deleted = self.session.query(List).filter(List.id == id).delete() == 1
+        self.session.commit()
+        return deleted
 
-    my_list = {}
-    my_list['id'] = l.id
-    my_list['items'] = [entry.text for entry in l.entries]
-    return my_list
+    def new(self):
+        list_id = lib.random_string()
+        new_list = List(
+            id=list_id,
+            expires=datetime.fromtimestamp(time.time() + LIST_LIFETIME)
+        )
+        self.session.add(new_list)
+        self.session.commit()
 
-def add(list_id, item):
-    entry = Entry(text=item, list_id = list_id)
-    session.add(entry)
-    session.commit()
-    return get(list_id)
-    
+        print(new_list.to_dict())
+        return new_list.to_dict()
+
+    def get(self, id):
+        l = self.session.query(List).filter(alive()).filter(List.id == id).first()
+        if l == None: return None
+
+        return l.to_dict()
+
+    def add_item(self, list_id, item):
+        entry = Entry(text=item, list_id = list_id)
+        self.session.add(entry)
+        self.session.commit()
+        return self.get(list_id)
+
+    def delete_item(self, item_id):
+        deleted = self.session.query(Entry).filter(Entry.id == item_id).delete() == 1
+        self.session.commit()
+        return deleted
 
