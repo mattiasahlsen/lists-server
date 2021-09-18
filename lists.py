@@ -7,10 +7,9 @@ import os
 import logging
 
 import sqlalchemy as db
-from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 LIST_TABLE = 'List'
 ENTRY_TABLE = 'Entry'
@@ -33,7 +32,7 @@ class List(Base):
 class Entry(Base):
     __tablename__ = ENTRY_TABLE
     id = Column(Integer, primary_key=True)
-    text = Column(MEDIUMTEXT, nullable=False)
+    text = Column(Text, nullable=False)
     list_id = Column(
         String(255),
         ForeignKey(List.id, ondelete='cascade'),
@@ -68,15 +67,20 @@ class CleanupThread(Thread):
 class ListApp:
     def __init__(self, connection):
         engine = db.create_engine(connection)
+        self.engine = engine
 
         Base.metadata.create_all(engine)
         Session = sessionmaker(bind = engine)
         self.session = Session()
 
-        stopFlag = Event()
-        thread = CleanupThread(self.session, stopFlag)
+        self.stopFlag = Event()
+        thread = CleanupThread(self.session, self.stopFlag)
         thread.start()
         # stopFlag.set() # stops the thread
+
+    def stop(self):
+        self.engine.dispose()
+        self.stopFlag.set()
 
     def delete(self, id):
         # returns true if delete is successful
